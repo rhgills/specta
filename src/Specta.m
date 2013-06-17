@@ -78,37 +78,41 @@ void sharedExamples(NSString *name, void (^block)(NSDictionary *data)) {
 }
 
 void itShouldBehaveLike(NSString *name, id dictionaryOrBlock) {
-  SPTDictionaryBlock block = [SPTSharedExampleGroups sharedExampleGroupWithName:name exampleGroup:SPT_currentGroup];
-  if(block) {
-    if(SPT_isBlock(dictionaryOrBlock)) {
-      id (^dataBlock)(void) = [[dictionaryOrBlock copy] autorelease];
-
-      describe(name, ^{
-        __block NSMutableDictionary *dataDict = [NSMutableDictionary dictionary];
-
-        beforeEach(^{
-          NSDictionary *blockData = dataBlock();
-          [dataDict removeAllObjects];
-          [dataDict addEntriesFromDictionary:blockData];
-        });
-
-        block(dataDict);
-      });
+    SPTDictionaryBlock block = [SPTSharedExampleGroups sharedExampleGroupWithName:name exampleGroup:SPT_currentGroup];
+    if(block) {
+        if(SPT_isBlock(dictionaryOrBlock)) {
+            id (^dataBlock)(void) = [[dictionaryOrBlock copy] autorelease];
+            
+            describe(name, ^{
+                __block NSMutableDictionary *dataDict = [[NSMutableDictionary alloc] init];
+                
+                beforeEach(^{
+                    NSDictionary *blockData = dataBlock();
+                    [dataDict removeAllObjects];
+                    [dataDict addEntriesFromDictionary:blockData];
+                });
+                
+                block(dataDict);
+                
+                afterAll(^{
+                    [dataDict release];
+                });
+            });
+        } else {
+            NSDictionary *data = dictionaryOrBlock;
+            
+            describe(name, ^{
+                block(data);
+            });
+        }
     } else {
-      NSDictionary *data = dictionaryOrBlock;
-
-      describe(name, ^{
-        block(data);
-      });
+        SPTSenTestCase *currentTestCase = [[[NSThread currentThread] threadDictionary] objectForKey:@"SPT_currentTestCase"];
+        if(currentTestCase) {
+            SPTSpec *spec = [[currentTestCase class] SPT_spec];
+            NSException *exception = [NSException failureInFile:spec.fileName atLine:(int)spec.lineNumber withDescription:@"itShouldBehaveLike should not be invoked inside an example block!"];
+            [currentTestCase failWithException: exception];
+        }
     }
-  } else {
-    SPTSenTestCase *currentTestCase = [[[NSThread currentThread] threadDictionary] objectForKey:@"SPT_currentTestCase"];
-    if(currentTestCase) {
-      SPTSpec *spec = [[currentTestCase class] SPT_spec];
-      NSException *exception = [NSException failureInFile:spec.fileName atLine:(int)spec.lineNumber withDescription:@"itShouldBehaveLike should not be invoked inside an example block!"];
-      [currentTestCase failWithException: exception];
-    }
-  }
 }
 
 void itBehavesLike(NSString *name, id dictionaryOrBlock) {
